@@ -23,6 +23,27 @@
 
     <!-- Status Badge -->
     <div class="absolute right-3 top-3 z-10 flex items-center gap-1.5">
+      <!-- 添加标签按钮（无标签时显示） -->
+      <span
+        v-if="!account.tag"
+        class="btn btn--icon-sm btn--dashed"
+        v-tooltip="$t('tokenList.clickToAddTag')"
+        @click.stop="openTagEditor"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+        </svg>
+      </span>
+      <!-- 标签（有标签时显示，可点击编辑） -->
+      <span
+        v-if="account.tag"
+        class="badge editable"
+        :style="tagBadgeStyle"
+        v-tooltip="$t('tokenList.clickToEditTag')"
+        @click.stop="openTagEditor"
+      >
+        {{ account.tag }}
+      </span>
       <span :class="['badge', statusBadgeClass]">
         <span class="status-dot" :class="statusDotClass"></span>
         {{ statusLabel }}
@@ -80,6 +101,25 @@
         {{ isSwitching ? $t('platform.windsurf.switching') : $t('platform.windsurf.switch') }}
       </button>
 
+      <!-- 复制菜单 -->
+      <FloatingDropdown ref="copyMenuRef" placement="bottom-end" :close-on-select="false" @click.stop>
+        <template #trigger>
+          <button class="btn btn--ghost btn--icon shrink-0" v-tooltip="$t('tokenCard.copyMenu')">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+            </svg>
+          </button>
+        </template>
+        <template #default="{ close }">
+          <button @click="handleCopyMenuClick('refreshToken', close)" class="dropdown-item">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+            </svg>
+            <span>{{ $t('accountCard.copyRefreshToken') }}</span>
+          </button>
+        </template>
+      </FloatingDropdown>
+
       <button
         @click.stop="$emit('refresh', account.id)"
         class="btn btn--ghost btn--icon shrink-0"
@@ -104,12 +144,24 @@
     </div>
 
   </div>
+
+  <!-- 标签编辑模态框 -->
+  <TagEditorModal
+    v-model:visible="showTagEditor"
+    :token="accountAsToken"
+    :all-tokens="allAccountsAsTokens"
+    @save="handleTagSave"
+    @clear="handleTagClear"
+  />
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from 'vue-i18n'
 import QuotaBar from '../common/QuotaBar.vue'
+import FloatingDropdown from '../common/FloatingDropdown.vue'
+import TagEditorModal from '../token/TagEditorModal.vue'
 
 const { t: $t } = useI18n()
 
@@ -120,10 +172,15 @@ const props = defineProps({
   isRefreshing: { type: Boolean, default: false },
   isSelected: { type: Boolean, default: false },
   selectionMode: { type: Boolean, default: false },
-  showRealEmail: { type: Boolean, default: true }
+  showRealEmail: { type: Boolean, default: true },
+  allAccounts: { type: Array, default: () => [] }
 })
 
-const emit = defineEmits(['switch', 'refresh', 'delete', 'select'])
+const emit = defineEmits(['switch', 'refresh', 'delete', 'select', 'account-updated'])
+
+// 复制菜单状态
+const copyMenuRef = ref(null)
+const showTagEditor = ref(false)
 
 const maskedEmail = computed(() => {
   const email = props.account.email
@@ -243,5 +300,74 @@ const formatDate = (timestamp) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+// 复制菜单操作
+const handleCopyMenuClick = async (type, close) => {
+  close?.()
+
+  switch (type) {
+    case 'refreshToken':
+      await copyRefreshToken()
+      break
+  }
+}
+
+const copyRefreshToken = async () => {
+  try {
+    const refreshToken = props.account.token?.refresh_token
+    if (!refreshToken) {
+      window.$notify?.error($t('messages.noRefreshToken'))
+      return
+    }
+    await navigator.clipboard.writeText(refreshToken)
+    window.$notify?.success($t('messages.refreshTokenCopied'))
+  } catch (err) {
+    console.error('Failed to copy refresh token:', err)
+    window.$notify?.error($t('messages.copyFailed'))
+  }
+}
+
+// 标签样式
+const DEFAULT_TAG_COLOR = '#f97316'
+
+const tagBadgeStyle = computed(() => {
+  if (!props.account.tag) return {}
+  const color = props.account.tag_color || DEFAULT_TAG_COLOR
+  return { '--tag-color': color }
+})
+
+// 将 account 转换为 TagEditorModal 需要的 token 格式
+const accountAsToken = computed(() => ({
+  tag_name: props.account.tag || '',
+  tag_color: props.account.tag_color || ''
+}))
+
+const allAccountsAsTokens = computed(() =>
+  props.allAccounts.map(acc => ({
+    tag_name: acc.tag || '',
+    tag_color: acc.tag_color || ''
+  }))
+)
+
+// 标签操作
+const openTagEditor = () => {
+  showTagEditor.value = true
+}
+
+const handleTagSave = ({ tagName, tagColor }) => {
+  props.account.tag = tagName
+  props.account.tag_color = tagColor
+  props.account.updated_at = Math.floor(Date.now() / 1000)
+  emit('account-updated', props.account)
+  window.$notify?.success($t('messages.tagUpdated'))
+}
+
+const handleTagClear = () => {
+  props.account.tag = ''
+  props.account.tag_color = ''
+  props.account.updated_at = Math.floor(Date.now() / 1000)
+  emit('account-updated', props.account)
+  window.$notify?.success($t('messages.tagCleared'))
 }
 </script>

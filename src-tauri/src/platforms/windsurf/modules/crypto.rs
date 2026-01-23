@@ -219,6 +219,7 @@ pub mod platform {
     }
     
     /// Windows DPAPI 加密
+    #[allow(dead_code)]
     fn dpapi_encrypt(data: &[u8]) -> Result<Vec<u8>, String> {
         use windows::Win32::Security::Cryptography::{
             CryptProtectData, CRYPT_INTEGER_BLOB, CRYPTPROTECT_UI_FORBIDDEN,
@@ -441,6 +442,7 @@ pub mod platform {
     }
 
     async fn get_windsurf_secret_password_async() -> Result<Vec<u8>, String> {
+        use std::collections::HashMap;
         use secret_service::{SecretService, EncryptionType};
 
         let ss = SecretService::connect(EncryptionType::Dh).await
@@ -455,10 +457,10 @@ pub mod platform {
         }
 
         // 搜索 Windsurf 创建的密码条目
-        let attributes = vec![
+        let attributes: HashMap<&str, &str> = [
             ("application", "windsurf"),
             ("xdg:schema", "chrome_libsecret_os_crypt_password_v2"),
-        ];
+        ].into_iter().collect();
 
         let items = collection.search_items(attributes).await
             .map_err(|e| format!("Failed to search items: {:?}", e))?;
@@ -482,6 +484,7 @@ pub mod platform {
     }
     
     async fn get_or_create_secret_key_async() -> Result<[u8; 16], String> {
+        use std::collections::HashMap;
         use secret_service::{SecretService, EncryptionType};
         
         let ss = SecretService::connect(EncryptionType::Dh).await
@@ -496,10 +499,10 @@ pub mod platform {
                 .map_err(|e| format!("Failed to unlock collection: {:?}", e))?;
         }
         
-        let attributes = vec![
+        let attributes: HashMap<&str, &str> = [
             ("application", "windsurf"),
             ("xdg:schema", "chrome_libsecret_os_crypt_password_v2"),
-        ];
+        ].into_iter().collect();
         
         // 尝试获取现有密钥
         let items = collection.search_items(attributes.clone()).await
@@ -522,7 +525,7 @@ pub mod platform {
         
         collection.create_item(
             "Windsurf Safe Storage",
-            attributes.into_iter().collect(),
+            attributes,
             &key,
             true, // replace
             "text/plain",
