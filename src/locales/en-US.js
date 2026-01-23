@@ -404,11 +404,6 @@ export default {
     team: 'Team',
     manageTeam: 'Manage Team'
   },
-  accountCard: {
-    copyRefreshToken: 'Copy Refresh Token',
-    copyProjectId: 'Copy Project ID',
-    copyPaymentLink: 'Copy Payment Link'
-  },
   team: {
     title: 'Team Management',
     teamInfo: 'Team Information',
@@ -664,11 +659,7 @@ export default {
     sessionErrorOrAccountBanned: 'Session error or account banned',
     tagUpdated: 'Tag updated',
     tagCleared: 'Tag cleared',
-    comingSoon: 'Coming Soon',
-    refreshTokenCopied: 'Refresh Token copied to clipboard!',
-    noRefreshToken: 'No Refresh Token for this account',
-    projectIdCopied: 'Project ID copied to clipboard!',
-    noProjectId: 'No Project ID for this account'
+    comingSoon: 'Coming Soon'
   },
   validation: {
     required: 'This field is required',

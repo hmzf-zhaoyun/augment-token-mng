@@ -43,12 +43,17 @@ pub struct Account {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quota: Option<QuotaData>,
 
-    /// 用户标签
+    /// 用户备注
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tag: Option<String>,
-    /// 标签颜色
+    pub note: Option<String>,
+
+    /// Windsurf auth status cache: allowed command model configs (base64)
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub tag_color: Option<String>,
+    pub allowed_command_model_configs_proto_binary_base64: Option<Vec<String>>,
+
+    /// Windsurf auth status cache: user status proto (base64)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_status_proto_binary_base64: Option<String>,
 
     #[serde(default)]
     pub disabled: bool,
@@ -110,8 +115,9 @@ impl Account {
             api_key: None,
             api_server_url: None,
             quota: None,
-            tag: None,
-            tag_color: None,
+            note: None,
+            allowed_command_model_configs_proto_binary_base64: None,
+            user_status_proto_binary_base64: None,
             disabled: false,
             disabled_reason: None,
             disabled_at: None,
